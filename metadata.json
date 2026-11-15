@@ -1,0 +1,6 @@
+{
+  "name": "Amika Lite",
+  "description": "Pendamping AI ringan ramah RAM 16GB dan VRAM 4GB tanpa Live2D, dengan mode hybrid Gemini API dan Ollama lokal, memori jangka panjang, serta suara STT/TTS.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
