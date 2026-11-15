@@ -1,4 +1,9 @@
 import type { ChatMessage, EmotionTag, MemoryItem, PersonaProfile } from '../types.ts';
+import {
+  buildLytaSystemPrompt,
+  extractDeepReply,
+  extractStreamingPreview,
+} from './lytaContract.ts';
 
 export interface OllamaHealthResult {
   reachable: boolean;
@@ -33,36 +38,39 @@ export async function checkOllamaHealth(baseUrl: string): Promise<OllamaHealthRe
   }
 }
 
-export function buildLocalSystemPrompt(persona: PersonaProfile, memories: MemoryItem[]): string {
-  const langRule =
-    persona.language === 'id'
-      ? 'Gunakan Bahasa Indonesia yang natural dan ringkas.'
-      : 'Respond concisely in natural English.';
-  const memoryBlock =
-    memories.length > 0
-      ? memories.map((m) => `- [${m.category}] ${m.content}`).join('\n')
-      : '- Belum ada memori tersimpan.';
-
-  return [
-    `Nama kamu: ${persona.name}.`,
-    `Peran: ${persona.roleDescription}`,
-    `Gaya bicara: ${persona.toneGuidelines}`,
-    langRule,
-    'Awali baris pertama dengan tag emosi: [EMOTION:tenang] atau [EMOTION:hangat] atau [EMOTION:fokus] atau [EMOTION:penasaran] atau [EMOTION:antusias].',
-    'Memori relevan:',
-    memoryBlock,
-  ].join('\n');
+export function buildLocalSystemPrompt(
+  persona: PersonaProfile,
+  memories: MemoryItem[],
+  userText = '',
+  recentThoughts: string[] = []
+): string {
+  return buildLytaSystemPrompt({
+    persona,
+    memories,
+    userText,
+    density: 'compact',
+    recentThoughts,
+  });
 }
 
-export function parseEmotionTag(rawText: string): { emotion: EmotionTag; content: string } {
-  const match = rawText.match(/^\s*\[EMOTION:(tenang|hangat|fokus|penasaran|antusias)\]\s*/i);
-  if (!match) {
-    return { emotion: 'tenang', content: rawText };
-  }
+export function parseEmotionTag(rawText: string): {
+  emotion: EmotionTag;
+  content: string;
+  thought?: string;
+} {
+  const extracted = extractDeepReply(rawText);
   return {
-    emotion: match[1].toLowerCase() as EmotionTag,
-    content: rawText.slice(match[0].length),
+    emotion: extracted.tone,
+    content: extracted.speech,
+    thought: extracted.thought || undefined,
   };
+}
+
+export function parseStreamingPreview(rawText: string): {
+  emotion: EmotionTag;
+  content: string;
+} {
+  return extractStreamingPreview(rawText);
 }
 
 export async function streamOllamaChat(params: {

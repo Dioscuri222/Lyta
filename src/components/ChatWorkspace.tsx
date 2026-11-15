@@ -14,6 +14,7 @@ import {
   stopAllAudio,
   type SttSession,
 } from '../lib/voiceUtils.ts';
+import { formatEmotionLabel, getSceneSnapshot } from '../lib/lytaContract.ts';
 
 interface ChatWorkspaceProps {
   messages: ChatMessage[];
@@ -34,18 +35,10 @@ interface ChatWorkspaceProps {
   onToggleAutoSpeak: () => Promise<void>;
 }
 
-const EMOTION_LABEL: Record<EmotionTag, string> = {
-  tenang: 'Tenang',
-  hangat: 'Hangat',
-  fokus: 'Fokus',
-  penasaran: 'Penasaran',
-  antusias: 'Antusias',
-};
-
 const QUICK_STARTERS = [
-  'Bantu aku memilih model Ollama paling ringan untuk RAM 16GB dan VRAM 4GB.',
-  'Ingat bahwa aku lebih suka penjelasan teknis yang singkat dan terstruktur.',
-  'Buatkan rutinitas belajar 45 menit malam ini tanpa distraksi.',
+  'Baru pulang nih, kamu lagi ngapain?',
+  'Lagi makan mi goreng di meja nih.',
+  'Hari ini agak capek di luar, ngobrol bentar yuk.',
 ];
 
 export function ChatWorkspace({
@@ -79,6 +72,7 @@ export function ChatWorkspace({
 
   const browserSttAvailable = isBrowserSttSupported();
   const pinnedMemories = memories.filter((m) => m.pinned);
+  const sceneSnapshot = getSceneSnapshot(persona);
 
   useEffect(() => {
     listEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -239,6 +233,8 @@ export function ChatWorkspace({
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#94A3B8]">
           <span className="font-medium text-[#F1F5F9]">{persona.name}</span>
           <span aria-hidden="true">/</span>
+          <span>{sceneSnapshot.timePeriodLabelId}</span>
+          <span aria-hidden="true">/</span>
           <span className="font-mono-tabular">
             Memori aktif: {memories.length} ({pinnedMemories.length} tersemat)
           </span>
@@ -330,11 +326,11 @@ export function ChatWorkspace({
         {messages.length === 0 && !streamingText ? (
           <div className="max-w-2xl mx-auto py-8 sm:py-12">
             <h2 className="text-xl font-semibold text-[#F1F5F9] text-balance">
-              Mulai percakapan bersama {persona.name}
+              Mulai obrolan bersama {persona.name}
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-[#94A3B8]">
-              Fokus pada percakapan teks, memori jangka panjang yang ringkas, dan interaksi suara
-              ringan tanpa membebani GPU.
+              Teman sekamar dari Kyoto dengan sifat asli yang santai, jujur, dan responsif terhadap
+              waktu harian serta memori jangka panjang tanpa membebani GPU.
             </p>
 
             <div className="mt-6 space-y-2">
@@ -364,12 +360,12 @@ export function ChatWorkspace({
                 >
                   <div className="flex items-center gap-2 mb-1 text-xs text-[#94A3B8]">
                     <span className="font-medium text-[#F1F5F9]">
-                      {isUser ? 'Anda' : persona.name}
+                      {isUser ? persona.userName || 'Anda' : persona.name}
                     </span>
                     {!isUser && msg.emotion && (
                       <>
                         <span aria-hidden="true">·</span>
-                        <span className="text-[#38BDF8]">Nada: {EMOTION_LABEL[msg.emotion]}</span>
+                        <span className="text-[#38BDF8]">{formatEmotionLabel(msg.emotion)}</span>
                       </>
                     )}
                     <span aria-hidden="true">·</span>
@@ -427,7 +423,7 @@ export function ChatWorkspace({
                 <div className="flex items-center gap-2 mb-1 text-xs text-[#94A3B8]">
                   <span className="font-medium text-[#F1F5F9]">{persona.name}</span>
                   <span aria-hidden="true">·</span>
-                  <span className="text-[#38BDF8]">Nada: {EMOTION_LABEL[streamingEmotion]}</span>
+                  <span className="text-[#38BDF8]">{formatEmotionLabel(streamingEmotion)}</span>
                   <span aria-hidden="true">·</span>
                   <span>Menulis...</span>
                 </div>

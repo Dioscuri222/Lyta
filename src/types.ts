@@ -1,6 +1,10 @@
 export type EngineMode = 'gemini' | 'ollama';
 
-export type EmotionTag = 'tenang' | 'hangat' | 'fokus' | 'penasaran' | 'antusias';
+export type RegisterType = 'polite' | 'casual' | 'serious' | 'intimate' | 'whisper';
+
+export type EmotionTag = string;
+
+export type RelationshipStage = 'acquaintance' | 'trusted' | 'close';
 
 export type MemoryCategory = 'preference' | 'fact' | 'project' | 'routine';
 
@@ -8,6 +12,9 @@ export type VoiceEngineMode = 'browser' | 'gemini';
 
 export interface PersonaProfile {
   name: string;
+  userName: string;
+  city: string;
+  relationshipStage: RelationshipStage;
   roleDescription: string;
   toneGuidelines: string;
   language: 'id' | 'en';
@@ -31,6 +38,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   emotion?: EmotionTag;
+  thought?: string;
   engine: EngineMode;
   modelName: string;
   tokenEstimate: number;

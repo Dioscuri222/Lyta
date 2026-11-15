@@ -1,7 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Check, RefreshCw } from 'lucide-react';
-import type { AppConfigState, PersonaProfile } from '../types.ts';
+import type { AppConfigState, PersonaProfile, RelationshipStage } from '../types.ts';
 import type { OllamaHealthResult } from '../lib/ollamaClient.ts';
+import {
+  AUTHENTIC_LYTA_ROLE_DESCRIPTION,
+  AUTHENTIC_LYTA_TONE_GUIDELINES,
+} from '../lib/lytaContract.ts';
 
 interface PersonaSettingsProps {
   persona: PersonaProfile;
@@ -25,6 +29,19 @@ export function PersonaSettings({
   const [form, setForm] = useState<PersonaProfile>(persona);
   const [saving, setSaving] = useState(false);
   const [savedNotice, setSavedNotice] = useState(false);
+
+  useEffect(() => {
+    setForm(persona);
+  }, [persona]);
+
+  function handleRestoreAuthenticDefaults() {
+    setForm((prev) => ({
+      ...prev,
+      name: 'Lyta',
+      roleDescription: AUTHENTIC_LYTA_ROLE_DESCRIPTION,
+      toneGuidelines: AUTHENTIC_LYTA_TONE_GUIDELINES,
+    }));
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -151,7 +168,7 @@ export function PersonaSettings({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label htmlFor="persona-name" className="block text-xs font-medium text-[#F1F5F9] mb-1.5">
-                Nama Asisten
+                Nama Panggilan Karakter
               </label>
               <input
                 id="persona-name"
@@ -165,7 +182,7 @@ export function PersonaSettings({
 
             <div>
               <label htmlFor="persona-lang" className="block text-xs font-medium text-[#F1F5F9] mb-1.5">
-                Bahasa Utama
+                Bahasa Default (Otomatis Mengikuti Anda)
               </label>
               <select
                 id="persona-lang"
@@ -175,6 +192,56 @@ export function PersonaSettings({
               >
                 <option value="id">Bahasa Indonesia</option>
                 <option value="en">English</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label htmlFor="persona-user-name" className="block text-xs font-medium text-[#F1F5F9] mb-1.5">
+                Nama Panggilan Anda
+              </label>
+              <input
+                id="persona-user-name"
+                type="text"
+                value={form.userName}
+                onChange={(e) => setForm({ ...form, userName: e.target.value })}
+                placeholder="Roommate"
+                required
+                className="w-full h-10 px-3 text-sm bg-[#080A0D] text-[#F1F5F9] border border-[#232B36] rounded-lg focus:border-[#38BDF8]"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="persona-city" className="block text-xs font-medium text-[#F1F5F9] mb-1.5">
+                Kota Tempat Tinggal
+              </label>
+              <input
+                id="persona-city"
+                type="text"
+                value={form.city}
+                onChange={(e) => setForm({ ...form, city: e.target.value })}
+                placeholder="Jakarta"
+                required
+                className="w-full h-10 px-3 text-sm bg-[#080A0D] text-[#F1F5F9] border border-[#232B36] rounded-lg focus:border-[#38BDF8]"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="persona-rel-stage" className="block text-xs font-medium text-[#F1F5F9] mb-1.5">
+                Tahap Kedekatan
+              </label>
+              <select
+                id="persona-rel-stage"
+                value={form.relationshipStage}
+                onChange={(e) =>
+                  setForm({ ...form, relationshipStage: e.target.value as RelationshipStage })
+                }
+                className="w-full h-10 px-3 text-sm bg-[#080A0D] text-[#F1F5F9] border border-[#232B36] rounded-lg"
+              >
+                <option value="acquaintance">Kenalan Baru Discord</option>
+                <option value="trusted">Teman Terpercaya</option>
+                <option value="close">Teman Sekamar Dekat</option>
               </select>
             </div>
           </div>
@@ -268,15 +335,23 @@ export function PersonaSettings({
             )}
           </div>
 
-          <div className="flex items-center justify-between pt-2">
-            {savedNotice ? (
-              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[#38BDF8]">
-                <Check className="w-4 h-4" aria-hidden="true" />
-                <span>Pengaturan persona tersimpan</span>
-              </span>
-            ) : (
-              <span />
-            )}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+            <div>
+              {savedNotice ? (
+                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[#38BDF8]">
+                  <Check className="w-4 h-4" aria-hidden="true" />
+                  <span>Pengaturan persona tersimpan</span>
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleRestoreAuthenticDefaults}
+                  className="text-xs font-medium text-[#94A3B8] hover:text-[#38BDF8] transition-colors"
+                >
+                  Pulihkan persona autentik Lyta
+                </button>
+              )}
+            </div>
             <button
               type="submit"
               disabled={saving}

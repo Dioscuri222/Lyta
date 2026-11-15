@@ -3,12 +3,23 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import express from 'express';
 import { GoogleGenAI, ThinkingLevel, Type } from '@google/genai';
-import type { ChatMessage, EmotionTag, MemoryCategory, MemoryItem, PersonaProfile } from './src/types.ts';
+import type { ChatMessage, MemoryCategory, MemoryItem, PersonaProfile } from './src/types.ts';
 import { estimateTokens, selectRelevantMemories } from './src/lib/vramCalculator.ts';
+import {
+  AUTHENTIC_LYTA_ROLE_DESCRIPTION,
+  AUTHENTIC_LYTA_TONE_GUIDELINES,
+  buildLytaSystemPrompt,
+  extractDeepReply,
+} from './src/lib/lytaContract.ts';
 
 const PORT = 3000;
 const LEGACY_STORE_PATH = path.resolve(process.cwd(), 'data', 'amika-store.json');
 const STORE_PATH = path.resolve(process.cwd(), 'data', 'lyta-store.json');
+
+const LEGACY_GENERIC_ROLE =
+  'Pendamping AI personal yang ringan, tenang, dan praktis. Dirancang agar tetap responsif tanpa rendering Live2D.';
+const LEGACY_GENERIC_TONE =
+  'Jawab secara jelas, alami, dan ringkas tanpa basa-basi berlebih. Fokus membantu produktivitas, ide, dan obrolan harian.';
 
 interface StoreData {
   persona: PersonaProfile;
@@ -19,10 +30,11 @@ interface StoreData {
 const DEFAULT_STORE: StoreData = {
   persona: {
     name: 'Lyta',
-    roleDescription:
-      'Pendamping AI personal yang ringan, tenang, dan praktis. Dirancang agar tetap responsif tanpa rendering Live2D.',
-    toneGuidelines:
-      'Jawab secara jelas, alami, dan ringkas tanpa basa-basi berlebih. Fokus membantu produktivitas, ide, dan obrolan harian.',
+    userName: 'Roommate',
+    city: 'Jakarta',
+    relationshipStage: 'close',
+    roleDescription: AUTHENTIC_LYTA_ROLE_DESCRIPTION,
+    toneGuidelines: AUTHENTIC_LYTA_TONE_GUIDELINES,
     language: 'id',
     autoSpeak: false,
     voiceEngine: 'browser',
@@ -46,25 +58,58 @@ function getGeminiClient(): GoogleGenAI | null {
   });
 }
 
+function migrateLegacyGenericPersona(persona: PersonaProfile): { persona: PersonaProfile; changed: boolean } {
+  let changed = false;
+  const next = { ...persona };
+  if (next.roleDescription === LEGACY_GENERIC_ROLE) {
+    next.roleDescription = AUTHENTIC_LYTA_ROLE_DESCRIPTION;
+    changed = true;
+  }
+  if (next.toneGuidelines === LEGACY_GENERIC_TONE) {
+    next.toneGuidelines = AUTHENTIC_LYTA_TONE_GUIDELINES;
+    changed = true;
+  }
+  if (!next.userName) {
+    next.userName = DEFAULT_STORE.persona.userName;
+    changed = true;
+  }
+  if (!next.city) {
+    next.city = DEFAULT_STORE.persona.city;
+    changed = true;
+  }
+  if (!next.relationshipStage) {
+    next.relationshipStage = DEFAULT_STORE.persona.relationshipStage;
+    changed = true;
+  }
+  return { persona: next, changed };
+}
+
 async function readStore(): Promise<StoreData> {
   try {
     const raw = await fs.readFile(STORE_PATH, 'utf-8');
     const parsed = JSON.parse(raw) as Partial<StoreData>;
-    return {
-      persona: { ...DEFAULT_STORE.persona, ...(parsed.persona ?? {}) },
+    const mergedPersona = { ...DEFAULT_STORE.persona, ...(parsed.persona ?? {}) };
+    const { persona, changed } = migrateLegacyGenericPersona(mergedPersona);
+    const data: StoreData = {
+      persona,
       memories: Array.isArray(parsed.memories) ? parsed.memories : [],
       messages: Array.isArray(parsed.messages) ? parsed.messages : [],
     };
+    if (changed) {
+      await writeStore(data);
+    }
+    return data;
   } catch {
     try {
       const legacyRaw = await fs.readFile(LEGACY_STORE_PATH, 'utf-8');
       const legacyParsed = JSON.parse(legacyRaw) as Partial<StoreData>;
-      const migratedPersona = { ...DEFAULT_STORE.persona, ...(legacyParsed.persona ?? {}) };
-      if (migratedPersona.name === 'Amika' || migratedPersona.name === 'Amika Lite') {
-        migratedPersona.name = 'Lyta';
+      const mergedPersona = { ...DEFAULT_STORE.persona, ...(legacyParsed.persona ?? {}) };
+      if (mergedPersona.name === 'Amika' || mergedPersona.name === 'Amika Lite') {
+        mergedPersona.name = 'Lyta';
       }
+      const { persona } = migrateLegacyGenericPersona(mergedPersona);
       const migrated: StoreData = {
-        persona: migratedPersona,
+        persona,
         memories: Array.isArray(legacyParsed.memories) ? legacyParsed.memories : [],
         messages: Array.isArray(legacyParsed.messages) ? legacyParsed.messages : [],
       };
@@ -81,44 +126,6 @@ async function readStore(): Promise<StoreData> {
 async function writeStore(data: StoreData): Promise<void> {
   await fs.mkdir(path.dirname(STORE_PATH), { recursive: true });
   await fs.writeFile(STORE_PATH, JSON.stringify(data, null, 2), 'utf-8');
-}
-
-function parseEmotionPrefix(rawText: string): { emotion: EmotionTag; content: string } {
-  const match = rawText.match(/^\s*\[EMOTION:(tenang|hangat|fokus|penasaran|antusias)\]\s*/i);
-  if (!match) {
-    return { emotion: 'tenang', content: rawText.trim() };
-  }
-  const emotion = match[1].toLowerCase() as EmotionTag;
-  return {
-    emotion,
-    content: rawText.slice(match[0].length).trim(),
-  };
-}
-
-function buildSystemInstruction(
-  persona: PersonaProfile,
-  selectedMemories: MemoryItem[]
-): string {
-  const langLine =
-    persona.language === 'id'
-      ? 'Gunakan Bahasa Indonesia yang natural kecuali pengguna menulis dalam bahasa lain.'
-      : 'Respond in natural English unless the user writes in another language.';
-
-  const memoryLines =
-    selectedMemories.length > 0
-      ? selectedMemories.map((m) => `- [${m.category}] ${m.content}`).join('\n')
-      : '- Belum ada memori tersimpan.';
-
-  return [
-    `Nama kamu adalah ${persona.name}.`,
-    `Peran: ${persona.roleDescription}`,
-    `Gaya bicara: ${persona.toneGuidelines}`,
-    langLine,
-    'Jangan menulis aksi panggung Live2D seperti *tersenyum lebar* atau kode ekspresi berlebihan.',
-    'Awali baris pertama jawabanmu TEPAT dengan salah satu tag berikut lalu spasi: [EMOTION:tenang] | [EMOTION:hangat] | [EMOTION:fokus] | [EMOTION:penasaran] | [EMOTION:antusias].',
-    'Memori Jangka Panjang Pengguna (gunakan secara alami hanya jika relevan):',
-    memoryLines,
-  ].join('\n');
 }
 
 async function startServer() {
@@ -231,6 +238,7 @@ async function startServer() {
         role: msg.role,
         content: msg.content,
         emotion: msg.emotion,
+        thought: typeof msg.thought === 'string' && msg.thought.trim() ? msg.thought.trim() : undefined,
         engine: msg.engine ?? 'ollama',
         modelName: msg.modelName ?? 'local',
         tokenEstimate: msg.tokenEstimate ?? estimateTokens(msg.content),
@@ -280,12 +288,29 @@ async function startServer() {
     try {
       const store = await readStore();
       const selectedMemories = selectRelevantMemories(store.memories, userText, memoryTokenBudget);
-      const systemInstruction = buildSystemInstruction(store.persona, selectedMemories);
+      const recentThoughts = store.messages
+        .filter((m) => m.role === 'assistant' && m.thought)
+        .slice(-2)
+        .map((m) => m.thought as string);
+      const systemInstruction = buildLytaSystemPrompt({
+        persona: store.persona,
+        memories: selectedMemories,
+        userText,
+        density: 'full',
+        recentThoughts,
+      });
 
       // Keep last 10 turns so context remains compact and fast
       const recentHistory = store.messages.slice(-10).map((m) => ({
         role: m.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: m.content }],
+        parts: [
+          {
+            text:
+              m.role === 'assistant' && m.emotion
+                ? `[${m.emotion}]"${m.content}"`
+                : m.content,
+          },
+        ],
       }));
 
       res.setHeader('Content-Type', 'text/event-stream');
@@ -317,7 +342,9 @@ async function startServer() {
         }
       }
 
-      const { emotion, content } = parseEmotionPrefix(rawFull);
+      const extracted = extractDeepReply(rawFull);
+      const content = extracted.speech || '...';
+      const emotion = extracted.tone;
       const latencyMs = Date.now() - startedAt;
 
       const userMsg: ChatMessage = {
@@ -332,8 +359,9 @@ async function startServer() {
       const assistantMsg: ChatMessage = {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: content || 'Maaf, tidak ada respons yang dihasilkan.',
+        content,
         emotion,
+        thought: extracted.thought || undefined,
         engine: 'gemini',
         modelName: requestedModel,
         tokenEstimate: estimateTokens(content),
@@ -383,7 +411,10 @@ async function startServer() {
       }
 
       const transcript = recent
-        .map((m) => `${m.role === 'user' ? 'Pengguna' : store.persona.name}: ${m.content}`)
+        .map(
+          (m) =>
+            `${m.role === 'user' ? store.persona.userName || 'Pengguna' : store.persona.name}: ${m.content}`
+        )
         .join('\n');
 
       const existingList = store.memories.map((m) => `- ${m.content}`).join('\n');

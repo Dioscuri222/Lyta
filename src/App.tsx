@@ -23,9 +23,15 @@ import {
   checkOllamaHealth,
   buildLocalSystemPrompt,
   parseEmotionTag,
+  parseStreamingPreview,
   streamOllamaChat,
   type OllamaHealthResult,
 } from './lib/ollamaClient.ts';
+import {
+  AUTHENTIC_LYTA_ROLE_DESCRIPTION,
+  AUTHENTIC_LYTA_TONE_GUIDELINES,
+  DEFAULT_EMOTION,
+} from './lib/lytaContract.ts';
 import {
   estimateTokens,
   selectRelevantMemories,
@@ -36,10 +42,11 @@ type WorkspaceTab = 'chat' | 'memory' | 'profiler' | 'settings';
 
 const DEFAULT_PERSONA: PersonaProfile = {
   name: 'Lyta',
-  roleDescription:
-    'Pendamping AI personal yang ringan, tenang, dan praktis. Dirancang agar tetap responsif tanpa rendering Live2D.',
-  toneGuidelines:
-    'Jawab secara jelas, alami, dan ringkas tanpa basa-basi berlebih. Fokus membantu produktivitas, ide, dan obrolan harian.',
+  userName: 'Roommate',
+  city: 'Jakarta',
+  relationshipStage: 'close',
+  roleDescription: AUTHENTIC_LYTA_ROLE_DESCRIPTION,
+  toneGuidelines: AUTHENTIC_LYTA_TONE_GUIDELINES,
   language: 'id',
   autoSpeak: false,
   voiceEngine: 'browser',
@@ -77,7 +84,7 @@ export default function App() {
 
   const [isSending, setIsSending] = useState(false);
   const [streamingText, setStreamingText] = useState('');
-  const [streamingEmotion, setStreamingEmotion] = useState<EmotionTag>('tenang');
+  const [streamingEmotion, setStreamingEmotion] = useState<EmotionTag>(DEFAULT_EMOTION);
   const [chatError, setChatError] = useState<string | null>(null);
 
   const [isExtracting, setIsExtracting] = useState(false);
@@ -210,7 +217,7 @@ export default function App() {
     setExtractNotice(null);
     setIsSending(true);
     setStreamingText('');
-    setStreamingEmotion('tenang');
+    setStreamingEmotion(DEFAULT_EMOTION);
 
     const controller = new AbortController();
     streamAbortRef.current = controller;
@@ -230,7 +237,11 @@ export default function App() {
 
       try {
         const relevant = selectRelevantMemories(memories, userText, config.memoryTokenBudget);
-        const systemPrompt = buildLocalSystemPrompt(persona, relevant);
+        const recentThoughts = messages
+          .filter((m) => m.role === 'assistant' && m.thought)
+          .slice(-2)
+          .map((m) => m.thought as string);
+        const systemPrompt = buildLocalSystemPrompt(persona, relevant, userText, recentThoughts);
 
         const rawReply = await streamOllamaChat({
           baseUrl: config.ollamaBaseUrl,
@@ -241,18 +252,19 @@ export default function App() {
           numCtx: config.numCtx,
           signal: controller.signal,
           onUpdate: (raw) => {
-            const parsed = parseEmotionTag(raw);
+            const parsed = parseStreamingPreview(raw);
             setStreamingEmotion(parsed.emotion);
             setStreamingText(parsed.content);
           },
         });
 
-        const { emotion, content } = parseEmotionTag(rawReply);
+        const { emotion, content, thought } = parseEmotionTag(rawReply);
         const assistantMsg: ChatMessage = {
           id: crypto.randomUUID(),
           role: 'assistant',
           content: content.trim() || 'Tidak ada respons dari model lokal.',
           emotion,
+          thought,
           engine: 'ollama',
           modelName: config.ollamaModel,
           tokenEstimate: estimateTokens(content),
@@ -341,7 +353,7 @@ export default function App() {
           };
 
           if (payload.type === 'chunk' && payload.raw) {
-            const parsed = parseEmotionTag(payload.raw);
+            const parsed = parseStreamingPreview(payload.raw);
             setStreamingEmotion(parsed.emotion);
             setStreamingText(parsed.content);
           } else if (payload.type === 'done' && payload.userMessage && payload.assistantMessage) {
