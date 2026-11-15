@@ -28,6 +28,11 @@ import {
   type OllamaHealthResult,
 } from './lib/ollamaClient.ts';
 import {
+  checkLlamaCppHealth,
+  streamLlamaCppChat,
+  type LlamaCppHealthResult,
+} from './lib/llamaCppClient.ts';
+import {
   AUTHENTIC_LYTA_ROLE_DESCRIPTION,
   AUTHENTIC_LYTA_TONE_GUIDELINES,
   DEFAULT_EMOTION,
@@ -59,6 +64,8 @@ const DEFAULT_CONFIG: AppConfigState = {
   geminiModel: 'gemini-4-hydrogen',
   ollamaBaseUrl: 'http://localhost:11434',
   ollamaModel: 'qwen2.5:3b-instruct-q4_K_M',
+  llamaCppBaseUrl: 'http://localhost:8080',
+  llamaCppModel: 'qwen2.5-3b-instruct-q4_k_m.gguf',
   numCtx: 4096,
   memoryTokenBudget: 350,
 };
@@ -92,6 +99,9 @@ export default function App() {
 
   const [ollamaHealth, setOllamaHealth] = useState<OllamaHealthResult | null>(null);
   const [checkingOllama, setCheckingOllama] = useState(false);
+
+  const [llamaCppHealth, setLlamaCppHealth] = useState<LlamaCppHealthResult | null>(null);
+  const [checkingLlamaCpp, setCheckingLlamaCpp] = useState(false);
 
   const streamAbortRef = useRef<AbortController | null>(null);
 
@@ -141,6 +151,16 @@ export default function App() {
       setOllamaHealth(result);
     } finally {
       setCheckingOllama(false);
+    }
+  }
+
+  async function handleCheckLlamaCpp() {
+    setCheckingLlamaCpp(true);
+    try {
+      const result = await checkLlamaCppHealth(config.llamaCppBaseUrl);
+      setLlamaCppHealth(result);
+    } finally {
+      setCheckingLlamaCpp(false);
     }
   }
 
@@ -301,6 +321,85 @@ export default function App() {
       return;
     }
 
+    if (config.engine === 'llamacpp') {
+      const startedAt = Date.now();
+      const userMsg: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'user',
+        content: userText,
+        engine: 'llamacpp',
+        modelName: config.llamaCppModel,
+        tokenEstimate: estimateTokens(userText),
+        createdAt: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, userMsg]);
+
+      try {
+        const relevant = selectRelevantMemories(memories, userText, config.memoryTokenBudget);
+        const recentThoughts = messages
+          .filter((m) => m.role === 'assistant' && m.thought)
+          .slice(-2)
+          .map((m) => m.thought as string);
+
+        const rawReply = await streamLlamaCppChat({
+          baseUrl: config.llamaCppBaseUrl,
+          model: config.llamaCppModel,
+          persona,
+          memories: relevant,
+          history: messages,
+          userMessage: userText,
+          numCtx: config.numCtx,
+          recentThoughts,
+          signal: controller.signal,
+          onUpdate: (raw) => {
+            const parsed = parseStreamingPreview(raw);
+            setStreamingEmotion(parsed.emotion);
+            setStreamingText(parsed.content);
+          },
+        });
+
+        const { emotion, content, thought } = parseEmotionTag(rawReply);
+        const assistantMsg: ChatMessage = {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: content.trim() || 'Tidak ada respons dari llama-server lokal.',
+          emotion,
+          thought,
+          engine: 'llamacpp',
+          modelName: config.llamaCppModel,
+          tokenEstimate: estimateTokens(content),
+          latencyMs: Date.now() - startedAt,
+          createdAt: new Date().toISOString(),
+        };
+
+        setMessages((prev) => [...prev, assistantMsg]);
+        await fetch('/api/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(userMsg),
+        });
+        await fetch('/api/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(assistantMsg),
+        });
+        void maybeAutoSpeak(assistantMsg.content);
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') {
+          setChatError(
+            err instanceof Error
+              ? `${err.message} Pastikan llama-server berjalan lewat start.bat, atau beralih ke Ollama / Gemini Hybrid.`
+              : 'Gagal menghubungi llama-server lokal.'
+          );
+        }
+      } finally {
+        setIsSending(false);
+        setStreamingText('');
+        streamAbortRef.current = null;
+      }
+      return;
+    }
+
     // Gemini Hybrid SSE path
     const optimisticUser: ChatMessage = {
       id: `temp-${Date.now()}`,
@@ -443,34 +542,50 @@ export default function App() {
       {/* Engine Switcher */}
       <div className="p-4 border-b border-[#232B36]">
         <div className="text-xs font-medium text-[#94A3B8] mb-2">Mode Otak AI</div>
-        <div className="grid grid-cols-2 gap-1 p-1 bg-[#080A0D] border border-[#232B36] rounded-lg" role="group" aria-label="Pilih mode engine AI">
+        <div className="grid grid-cols-3 gap-1 p-1 bg-[#080A0D] border border-[#232B36] rounded-lg" role="group" aria-label="Pilih mode engine AI">
           <button
             type="button"
             onClick={() => setConfig((prev) => ({ ...prev, engine: 'gemini' }))}
             aria-pressed={config.engine === 'gemini'}
-            className={`py-1.5 px-2 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+            className={`py-1.5 px-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
               config.engine === 'gemini'
                 ? 'bg-gradient-to-r from-[#38BDF8] to-[#0EA5E9] text-[#080A0D]'
                 : 'text-[#94A3B8] hover:text-[#F1F5F9]'
             }`}
           >
-            Gemini Hybrid
+            Gemini
           </button>
           <button
             type="button"
             onClick={() => setConfig((prev) => ({ ...prev, engine: 'ollama' }))}
             aria-pressed={config.engine === 'ollama'}
-            className={`py-1.5 px-2 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+            className={`py-1.5 px-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
               config.engine === 'ollama'
                 ? 'bg-gradient-to-r from-[#38BDF8] to-[#0EA5E9] text-[#080A0D]'
                 : 'text-[#94A3B8] hover:text-[#F1F5F9]'
             }`}
           >
-            Ollama Lokal
+            Ollama
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfig((prev) => ({ ...prev, engine: 'llamacpp' }))}
+            aria-pressed={config.engine === 'llamacpp'}
+            className={`py-1.5 px-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+              config.engine === 'llamacpp'
+                ? 'bg-gradient-to-r from-[#38BDF8] to-[#0EA5E9] text-[#080A0D]'
+                : 'text-[#94A3B8] hover:text-[#F1F5F9]'
+            }`}
+          >
+            llama.cpp
           </button>
         </div>
         <div className="mt-2.5 text-xs text-[#94A3B8] font-mono-tabular truncate">
-          {config.engine === 'gemini' ? config.geminiModel : config.ollamaModel}
+          {config.engine === 'gemini'
+            ? config.geminiModel
+            : config.engine === 'ollama'
+              ? config.ollamaModel
+              : config.llamaCppModel}
         </div>
       </div>
 
@@ -594,11 +709,14 @@ export default function App() {
                   selectedOllamaModel={config.ollamaModel}
                   numCtx={config.numCtx}
                   persona={persona}
-                  onApplyPreset={(ollamaTag, nextCtx) => {
+                  engine={config.engine}
+                  onApplyPreset={(ollamaTag, nextCtx, targetEngine) => {
+                    const ggufName = `${ollamaTag.replace(':', '-').toLowerCase()}.gguf`;
                     setConfig((prev) => ({
                       ...prev,
-                      engine: 'ollama',
-                      ollamaModel: ollamaTag,
+                      engine: targetEngine,
+                      ollamaModel: targetEngine === 'ollama' ? ollamaTag : prev.ollamaModel,
+                      llamaCppModel: targetEngine === 'llamacpp' ? ggufName : prev.llamaCppModel,
                       numCtx: nextCtx,
                     }));
                     setActiveTab('chat');
@@ -611,9 +729,12 @@ export default function App() {
                   config={config}
                   ollamaHealth={ollamaHealth}
                   checkingOllama={checkingOllama}
+                  llamaCppHealth={llamaCppHealth}
+                  checkingLlamaCpp={checkingLlamaCpp}
                   onSavePersona={handleSavePersona}
                   onChangeConfig={(patch) => setConfig((prev) => ({ ...prev, ...patch }))}
                   onCheckOllama={handleCheckOllama}
+                  onCheckLlamaCpp={handleCheckLlamaCpp}
                 />
               )}
             </>

@@ -1,24 +1,27 @@
 import { useMemo, useState } from 'react';
 import { Check, Copy, Download } from 'lucide-react';
-import type { LocalModelPreset, PersonaProfile } from '../types.ts';
+import type { EngineMode, LocalModelPreset, PersonaProfile } from '../types.ts';
 import {
   HARDWARE_CEILING,
   LOCAL_MODEL_PRESETS,
   buildModelfileContent,
   estimateVramUsage,
 } from '../lib/vramCalculator.ts';
+import { buildLlamaServerCli } from '../lib/llamaCppClient.ts';
 
 interface VramProfilerProps {
   selectedOllamaModel: string;
   numCtx: number;
   persona: PersonaProfile;
-  onApplyPreset: (ollamaTag: string, numCtx: number) => void;
+  engine: EngineMode;
+  onApplyPreset: (ollamaTag: string, numCtx: number, targetEngine: 'ollama' | 'llamacpp') => void;
 }
 
 export function VramProfiler({
   selectedOllamaModel,
   numCtx,
   persona,
+  engine,
   onApplyPreset,
 }: VramProfilerProps) {
   const initialPreset =
@@ -29,7 +32,10 @@ export function VramProfiler({
   const [quant, setQuant] = useState<LocalModelPreset['quantization']>(initialPreset.quantization);
   const [gpuLayers, setGpuLayers] = useState(initialPreset.maxLayers);
   const [quantKv, setQuantKv] = useState(true);
-  const [copied, setCopied] = useState<'modelfile' | 'cli' | null>(null);
+  const [exportTarget, setExportTarget] = useState<'llamacpp' | 'ollama'>(
+    engine === 'ollama' ? 'ollama' : 'llamacpp'
+  );
+  const [copied, setCopied] = useState<'modelfile' | 'cli' | 'llamacpp' | null>(null);
 
   const preset = useMemo(
     () => LOCAL_MODEL_PRESETS.find((p) => p.id === presetId) ?? LOCAL_MODEL_PRESETS[0],
@@ -46,6 +52,23 @@ export function VramProfiler({
     [preset, ctxValue, gpuLayers, persona]
   );
 
+  const ggufModelPath = useMemo(() => {
+    const base = preset.ollamaTag.split(':')[0];
+    const tag = preset.ollamaTag.split(':')[1] ?? quant.toLowerCase();
+    return `models\\${base}-${tag.replace(quant.toUpperCase(), quant.toLowerCase())}.gguf`;
+  }, [preset.ollamaTag, quant]);
+
+  const llamaServerCli = useMemo(
+    () =>
+      buildLlamaServerCli({
+        modelPath: ggufModelPath,
+        ctxSize: ctxValue,
+        gpuLayers,
+        quantKv,
+      }),
+    [ggufModelPath, ctxValue, gpuLayers, quantKv]
+  );
+
   const cliCommand = `OLLAMA_FLASH_ATTENTION=1 OLLAMA_KV_CACHE_TYPE=q8_0 OLLAMA_ORIGINS="*" ollama serve`;
 
   function handleSelectPreset(next: LocalModelPreset) {
@@ -55,7 +78,7 @@ export function VramProfiler({
     setCtxValue(next.recommendedCtx);
   }
 
-  async function handleCopy(kind: 'modelfile' | 'cli', text: string) {
+  async function handleCopy(kind: 'modelfile' | 'cli' | 'llamacpp', text: string) {
     await navigator.clipboard.writeText(text);
     setCopied(kind);
     setTimeout(() => setCopied(null), 1800);
@@ -93,10 +116,10 @@ export function VramProfiler({
           </div>
           <button
             type="button"
-            onClick={() => onApplyPreset(preset.ollamaTag, ctxValue)}
+            onClick={() => onApplyPreset(preset.ollamaTag, ctxValue, exportTarget)}
             className="h-10 px-4 text-sm font-medium bg-gradient-to-r from-[#38BDF8] to-[#0EA5E9] text-[#080A0D] rounded-lg hover:from-[#7DD3FC] hover:to-[#38BDF8] transition-colors whitespace-nowrap shrink-0"
           >
-            Pakai Profil Ini di Chat
+            Pakai untuk {exportTarget === 'llamacpp' ? 'llama.cpp' : 'Ollama'}
           </button>
         </div>
 
@@ -256,54 +279,112 @@ export function VramProfiler({
               </label>
             </div>
 
-            {/* Export Modelfile */}
+            {/* Export Runtime CLI / Modelfile */}
             <div className="bg-[#11151C] border border-[#232B36] rounded-xl p-4 sm:p-5 space-y-3">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold text-[#F1F5F9]">Modelfile Siap Pakai</h3>
-                <div className="flex items-center gap-1.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="grid grid-cols-2 gap-1 p-1 bg-[#080A0D] border border-[#232B36] rounded-lg">
                   <button
                     type="button"
-                    onClick={() => handleCopy('modelfile', modelfile)}
+                    onClick={() => setExportTarget('llamacpp')}
+                    aria-pressed={exportTarget === 'llamacpp'}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+                      exportTarget === 'llamacpp'
+                        ? 'bg-gradient-to-r from-[#38BDF8] to-[#0EA5E9] text-[#080A0D]'
+                        : 'text-[#94A3B8] hover:text-[#F1F5F9]'
+                    }`}
+                  >
+                    llama.cpp CLI
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setExportTarget('ollama')}
+                    aria-pressed={exportTarget === 'ollama'}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+                      exportTarget === 'ollama'
+                        ? 'bg-gradient-to-r from-[#38BDF8] to-[#0EA5E9] text-[#080A0D]'
+                        : 'text-[#94A3B8] hover:text-[#F1F5F9]'
+                    }`}
+                  >
+                    Ollama Modelfile
+                  </button>
+                </div>
+
+                {exportTarget === 'llamacpp' ? (
+                  <button
+                    type="button"
+                    onClick={() => handleCopy('llamacpp', llamaServerCli)}
                     className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium border border-[#232B36] rounded-md bg-[#181E27] text-[#F1F5F9] hover:border-[#38BDF8]"
                   >
-                    {copied === 'modelfile' ? (
+                    {copied === 'llamacpp' ? (
                       <Check className="w-3.5 h-3.5 text-[#38BDF8]" aria-hidden="true" />
                     ) : (
                       <Copy className="w-3.5 h-3.5" aria-hidden="true" />
                     )}
-                    <span>{copied === 'modelfile' ? 'Tersalin' : 'Salin'}</span>
+                    <span>{copied === 'llamacpp' ? 'Tersalin' : 'Salin CLI'}</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={handleDownloadModelfile}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium border border-[#232B36] rounded-md bg-[#181E27] text-[#F1F5F9] hover:border-[#38BDF8]"
-                  >
-                    <Download className="w-3.5 h-3.5" aria-hidden="true" />
-                    <span>Unduh</span>
-                  </button>
-                </div>
+                ) : (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleCopy('modelfile', modelfile)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium border border-[#232B36] rounded-md bg-[#181E27] text-[#F1F5F9] hover:border-[#38BDF8]"
+                    >
+                      {copied === 'modelfile' ? (
+                        <Check className="w-3.5 h-3.5 text-[#38BDF8]" aria-hidden="true" />
+                      ) : (
+                        <Copy className="w-3.5 h-3.5" aria-hidden="true" />
+                      )}
+                      <span>{copied === 'modelfile' ? 'Tersalin' : 'Salin'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDownloadModelfile}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium border border-[#232B36] rounded-md bg-[#181E27] text-[#F1F5F9] hover:border-[#38BDF8]"
+                    >
+                      <Download className="w-3.5 h-3.5" aria-hidden="true" />
+                      <span>Unduh</span>
+                    </button>
+                  </div>
+                )}
               </div>
-              <pre className="p-3 text-xs font-mono-tabular bg-[#080A0D] border border-[#232B36] rounded-lg overflow-x-auto text-[#F1F5F9]">
-                {modelfile}
-              </pre>
 
-              <div>
-                <div className="flex items-center justify-between gap-2 mb-1.5">
-                  <span className="text-xs font-medium text-[#94A3B8]">
-                    Perintah Jalankan Ollama (CORS + Hemat KV)
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleCopy('cli', cliCommand)}
-                    className="text-xs font-medium text-[#38BDF8] hover:underline"
-                  >
-                    {copied === 'cli' ? 'Tersalin' : 'Salin perintah'}
-                  </button>
+              {exportTarget === 'llamacpp' ? (
+                <div className="space-y-2">
+                  <p className="text-xs text-[#94A3B8]">
+                    Mengunci <span className="font-mono-tabular text-[#F1F5F9]">-c {ctxValue}</span> dan{' '}
+                    <span className="font-mono-tabular text-[#F1F5F9]">-ngl {gpuLayers}</span> saat startup{' '}
+                    <span className="font-mono-tabular text-[#F1F5F9]">llama-server</span> (sama dengan variabel di{' '}
+                    <span className="font-mono-tabular text-[#F1F5F9]">start.bat</span>).
+                  </p>
+                  <pre className="p-3 text-xs font-mono-tabular bg-[#080A0D] border border-[#232B36] rounded-lg overflow-x-auto text-[#F1F5F9] whitespace-pre-wrap break-all">
+                    {llamaServerCli}
+                  </pre>
                 </div>
-                <pre className="p-2.5 text-xs font-mono-tabular bg-[#080A0D] border border-[#232B36] rounded-lg overflow-x-auto text-[#F1F5F9]">
-                  {cliCommand}
-                </pre>
-              </div>
+              ) : (
+                <>
+                  <pre className="p-3 text-xs font-mono-tabular bg-[#080A0D] border border-[#232B36] rounded-lg overflow-x-auto text-[#F1F5F9]">
+                    {modelfile}
+                  </pre>
+
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <span className="text-xs font-medium text-[#94A3B8]">
+                        Perintah Jalankan Ollama (CORS + Hemat KV)
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopy('cli', cliCommand)}
+                        className="text-xs font-medium text-[#38BDF8] hover:underline"
+                      >
+                        {copied === 'cli' ? 'Tersalin' : 'Salin perintah'}
+                      </button>
+                    </div>
+                    <pre className="p-2.5 text-xs font-mono-tabular bg-[#080A0D] border border-[#232B36] rounded-lg overflow-x-auto text-[#F1F5F9]">
+                      {cliCommand}
+                    </pre>
+                  </div>
+                </>
+              )}
             </div>
           </section>
         </div>

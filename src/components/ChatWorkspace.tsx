@@ -370,7 +370,12 @@ export function ChatWorkspace({
                     )}
                     <span aria-hidden="true">·</span>
                     <span className="font-mono-tabular">
-                      {msg.engine === 'gemini' ? 'Gemini' : 'Ollama'} ({msg.modelName})
+                      {msg.engine === 'gemini'
+                        ? 'Gemini'
+                        : msg.engine === 'llamacpp'
+                          ? 'llama.cpp'
+                          : 'Ollama'}{' '}
+                      ({msg.modelName})
                     </span>
                     {msg.latencyMs ? (
                       <>
@@ -480,7 +485,9 @@ export function ChatWorkspace({
               placeholder={
                 config.engine === 'ollama'
                   ? `Tulis pesan untuk ${persona.name} via ${config.ollamaModel}...`
-                  : `Tulis pesan untuk ${persona.name} via ${config.geminiModel}...`
+                  : config.engine === 'llamacpp'
+                    ? `Tulis pesan untuk ${persona.name} via ${config.llamaCppModel}...`
+                    : `Tulis pesan untuk ${persona.name} via ${config.geminiModel}...`
               }
               className="flex-1 min-h-[44px] max-h-36 resize-y px-3.5 py-2.5 text-sm bg-[#11151C] text-[#F1F5F9] placeholder:text-[#94A3B8] border border-[#232B36] rounded-lg focus:border-[#38BDF8]"
             />
@@ -507,7 +514,13 @@ export function ChatWorkspace({
           </div>
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-[#94A3B8]">
             <span>
-              Mode aktif: {config.engine === 'gemini' ? 'Gemini Hybrid' : 'Ollama Lokal'} · Anggaran memori:{' '}
+              Mode aktif:{' '}
+              {config.engine === 'gemini'
+                ? 'Gemini Hybrid'
+                : config.engine === 'llamacpp'
+                  ? 'llama.cpp Lokal'
+                  : 'Ollama Lokal'}{' '}
+              · Anggaran memori:{' '}
               <span className="font-mono-tabular text-[#F1F5F9]">{config.memoryTokenBudget}</span> token
             </span>
             <span>Enter untuk kirim, Shift+Enter untuk baris baru</span>

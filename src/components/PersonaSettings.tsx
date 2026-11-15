@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Check, RefreshCw } from 'lucide-react';
 import type { AppConfigState, PersonaProfile, RelationshipStage } from '../types.ts';
 import type { OllamaHealthResult } from '../lib/ollamaClient.ts';
+import type { LlamaCppHealthResult } from '../lib/llamaCppClient.ts';
 import {
   AUTHENTIC_LYTA_ROLE_DESCRIPTION,
   AUTHENTIC_LYTA_TONE_GUIDELINES,
@@ -12,9 +13,12 @@ interface PersonaSettingsProps {
   config: AppConfigState;
   ollamaHealth: OllamaHealthResult | null;
   checkingOllama: boolean;
+  llamaCppHealth: LlamaCppHealthResult | null;
+  checkingLlamaCpp: boolean;
   onSavePersona: (next: PersonaProfile) => Promise<void>;
   onChangeConfig: (patch: Partial<AppConfigState>) => void;
   onCheckOllama: () => Promise<void>;
+  onCheckLlamaCpp: () => Promise<void>;
 }
 
 export function PersonaSettings({
@@ -22,9 +26,12 @@ export function PersonaSettings({
   config,
   ollamaHealth,
   checkingOllama,
+  llamaCppHealth,
+  checkingLlamaCpp,
   onSavePersona,
   onChangeConfig,
   onCheckOllama,
+  onCheckLlamaCpp,
 }: PersonaSettingsProps) {
   const [form, setForm] = useState<PersonaProfile>(persona);
   const [saving, setSaving] = useState(false);
@@ -156,6 +163,78 @@ export function PersonaSettings({
               )}
             </div>
           )}
+
+          {/* llama.cpp (llama-server) Settings */}
+          <div className="pt-4 border-t border-[#232B36] space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="llamacpp-url-input" className="block text-xs font-medium text-[#F1F5F9] mb-1.5">
+                  Endpoint llama.cpp (llama-server)
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    id="llamacpp-url-input"
+                    type="url"
+                    value={config.llamaCppBaseUrl}
+                    onChange={(e) => onChangeConfig({ llamaCppBaseUrl: e.target.value })}
+                    placeholder="http://localhost:8080"
+                    className="flex-1 h-10 px-3 text-sm font-mono-tabular bg-[#080A0D] text-[#F1F5F9] border border-[#232B36] rounded-lg focus:border-[#38BDF8]"
+                  />
+                  <button
+                    type="button"
+                    onClick={onCheckLlamaCpp}
+                    disabled={checkingLlamaCpp}
+                    aria-label="Uji koneksi llama-server lokal"
+                    className="h-10 px-3 inline-flex items-center gap-1.5 text-xs font-medium border border-[#232B36] rounded-lg bg-[#181E27] text-[#F1F5F9] hover:border-[#38BDF8]"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${checkingLlamaCpp ? 'animate-spin' : ''}`} aria-hidden="true" />
+                    <span>Uji</span>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="llamacpp-model-input" className="block text-xs font-medium text-[#F1F5F9] mb-1.5">
+                  Nama Model / File GGUF (llama.cpp)
+                </label>
+                <input
+                  id="llamacpp-model-input"
+                  type="text"
+                  value={config.llamaCppModel}
+                  onChange={(e) => onChangeConfig({ llamaCppModel: e.target.value })}
+                  placeholder="qwen2.5-3b-instruct-q4_k_m.gguf"
+                  className="w-full h-10 px-3 text-sm font-mono-tabular bg-[#080A0D] text-[#F1F5F9] border border-[#232B36] rounded-lg focus:border-[#38BDF8]"
+                />
+              </div>
+            </div>
+
+            <p className="text-xs text-[#94A3B8]">
+              Context size <span className="font-mono-tabular text-[#F1F5F9]">llama-server</span> dikunci
+              saat startup melalui flag <span className="font-mono-tabular text-[#F1F5F9]">-c 4096 -fa on -ctk q8_0 -ctv q8_0</span> di{' '}
+              <span className="font-mono-tabular text-[#F1F5F9]">start.bat</span>.
+            </p>
+
+            {llamaCppHealth && (
+              <div
+                className={`p-3 rounded-lg border text-xs ${
+                  llamaCppHealth.reachable
+                    ? 'bg-[#082F49]/60 border-[#0284C7] text-[#BAE6FD]'
+                    : 'bg-[#451A03]/60 border-[#92400E] text-[#FCD34D]'
+                }`}
+              >
+                {llamaCppHealth.reachable ? (
+                  <div>
+                    Terhubung ke llama-server ({llamaCppHealth.status ?? 'ok'}). Model aktif:{' '}
+                    <span className="font-mono-tabular">
+                      {llamaCppHealth.models.length > 0 ? llamaCppHealth.models.join(', ') : config.llamaCppModel}
+                    </span>
+                  </div>
+                ) : (
+                  <div>{llamaCppHealth.error}</div>
+                )}
+              </div>
+            )}
+          </div>
         </section>
 
         {/* Persona & Voice Form */}

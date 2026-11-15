@@ -1,4 +1,4 @@
-export type EngineMode = 'gemini' | 'ollama';
+export type EngineMode = 'gemini' | 'ollama' | 'llamacpp';
 
 export type RegisterType = 'polite' | 'casual' | 'serious' | 'intimate' | 'whisper';
 
@@ -80,6 +80,8 @@ export interface AppConfigState {
   geminiModel: 'gemini-4-hydrogen' | 'gemini-3.1-flash-lite';
   ollamaBaseUrl: string;
   ollamaModel: string;
+  llamaCppBaseUrl: string;
+  llamaCppModel: string;
   numCtx: number;
   memoryTokenBudget: number;
 }
