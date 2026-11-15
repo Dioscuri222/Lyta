@@ -2,20 +2,23 @@
 
 @layer base {
   :root {
-    --bg-canvas: #F6F4EF;
-    --bg-surface: #FFFFFF;
-    --bg-subtle: #EDE9E0;
-    --border-hairline: #E2DDD3;
-    --text-primary: #1E1D1A;
-    --text-muted: #625F57;
-    --accent-sage: #2D5A4C;
-    --accent-sage-hover: #23473C;
+    color-scheme: dark;
+    --bg-canvas: #080A0D;
+    --bg-sidebar: #0D1015;
+    --bg-surface: #11151C;
+    --bg-subtle: #181E27;
+    --border-hairline: #232B36;
+    --text-primary: #F1F5F9;
+    --text-muted: #94A3B8;
+    --accent-sky: #38BDF8;
+    --accent-sky-hover: #7DD3FC;
   }
 
   body {
     font-family: "DM Sans", system-ui, -apple-system, sans-serif;
     background-color: var(--bg-canvas);
     color: var(--text-primary);
+    letter-spacing: 0.005em;
   }
 
   h1, h2, h3, .font-display {
@@ -48,7 +51,7 @@
   }
 
   :focus-visible {
-    outline: 2px solid var(--accent-sage);
+    outline: 2px solid var(--accent-sky);
     outline-offset: 2px;
   }
 }

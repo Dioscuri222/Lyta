@@ -35,7 +35,7 @@ import { speakWithBrowserTts } from './lib/voiceUtils.ts';
 type WorkspaceTab = 'chat' | 'memory' | 'profiler' | 'settings';
 
 const DEFAULT_PERSONA: PersonaProfile = {
-  name: 'Amika',
+  name: 'Lyta',
   roleDescription:
     'Pendamping AI personal yang ringan, tenang, dan praktis. Dirancang agar tetap responsif tanpa rendering Live2D.',
   toneGuidelines:
@@ -68,7 +68,7 @@ export default function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [config, setConfig] = useState<AppConfigState>(() => {
     try {
-      const saved = localStorage.getItem('amika_lite_config');
+      const saved = localStorage.getItem('lyta_config') ?? localStorage.getItem('amika_lite_config');
       return saved ? { ...DEFAULT_CONFIG, ...JSON.parse(saved) } : DEFAULT_CONFIG;
     } catch {
       return DEFAULT_CONFIG;
@@ -89,7 +89,7 @@ export default function App() {
   const streamAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    localStorage.setItem('amika_lite_config', JSON.stringify(config));
+    localStorage.setItem('lyta_config', JSON.stringify(config));
   }, [config]);
 
   useEffect(() => {
@@ -413,33 +413,33 @@ export default function App() {
   const activeTitle = navItems.find((i) => i.id === activeTab)?.label ?? 'Percakapan';
 
   const sidebarContent = (
-    <div className="flex flex-col h-full bg-[#EDE9E0] border-r border-[#E2DDD3] text-[#1E1D1A]">
-      <div className="h-14 px-5 flex items-center justify-between border-b border-[#E2DDD3]">
-        <span className="font-display text-base font-semibold tracking-tight whitespace-nowrap shrink-0">
-          Companion
+    <div className="flex flex-col h-full bg-gradient-to-b from-[#0E1622] via-[#0B0F16] to-[#080A0D] border-r border-[#232B36] text-[#F1F5F9]">
+      <div className="h-14 px-5 flex items-center justify-between border-b border-[#232B36]">
+        <span className="font-display text-base font-semibold tracking-tight bg-gradient-to-r from-[#7DD3FC] to-[#0EA5E9] bg-clip-text text-transparent whitespace-nowrap shrink-0">
+          Lyta
         </span>
         <button
           type="button"
           onClick={() => setMobileMenuOpen(false)}
           aria-label="Tutup menu navigasi"
-          className="md:hidden h-9 w-9 inline-flex items-center justify-center rounded-lg hover:bg-[#E2DDD3]/60"
+          className="md:hidden h-9 w-9 inline-flex items-center justify-center rounded-lg text-[#94A3B8] hover:text-[#F1F5F9] hover:bg-[#181E27]"
         >
           <X className="w-4 h-4" aria-hidden="true" />
         </button>
       </div>
 
       {/* Engine Switcher */}
-      <div className="p-4 border-b border-[#E2DDD3]">
-        <div className="text-xs font-medium text-[#625F57] mb-2">Mode Otak AI</div>
-        <div className="grid grid-cols-2 gap-1 p-1 bg-[#E2DDD3]/70 rounded-lg" role="group" aria-label="Pilih mode engine AI">
+      <div className="p-4 border-b border-[#232B36]">
+        <div className="text-xs font-medium text-[#94A3B8] mb-2">Mode Otak AI</div>
+        <div className="grid grid-cols-2 gap-1 p-1 bg-[#080A0D] border border-[#232B36] rounded-lg" role="group" aria-label="Pilih mode engine AI">
           <button
             type="button"
             onClick={() => setConfig((prev) => ({ ...prev, engine: 'gemini' }))}
             aria-pressed={config.engine === 'gemini'}
             className={`py-1.5 px-2 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
               config.engine === 'gemini'
-                ? 'bg-[#FFFFFF] text-[#1E1D1A] shadow-xs'
-                : 'text-[#625F57] hover:text-[#1E1D1A]'
+                ? 'bg-gradient-to-r from-[#38BDF8] to-[#0EA5E9] text-[#080A0D]'
+                : 'text-[#94A3B8] hover:text-[#F1F5F9]'
             }`}
           >
             Gemini Hybrid
@@ -450,14 +450,14 @@ export default function App() {
             aria-pressed={config.engine === 'ollama'}
             className={`py-1.5 px-2 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
               config.engine === 'ollama'
-                ? 'bg-[#FFFFFF] text-[#1E1D1A] shadow-xs'
-                : 'text-[#625F57] hover:text-[#1E1D1A]'
+                ? 'bg-gradient-to-r from-[#38BDF8] to-[#0EA5E9] text-[#080A0D]'
+                : 'text-[#94A3B8] hover:text-[#F1F5F9]'
             }`}
           >
             Ollama Lokal
           </button>
         </div>
-        <div className="mt-2.5 text-xs text-[#625F57] font-mono-tabular truncate">
+        <div className="mt-2.5 text-xs text-[#94A3B8] font-mono-tabular truncate">
           {config.engine === 'gemini' ? config.geminiModel : config.ollamaModel}
         </div>
       </div>
@@ -478,8 +478,8 @@ export default function App() {
               aria-current={active ? 'page' : undefined}
               className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
                 active
-                  ? 'bg-[#FFFFFF] text-[#1E1D1A] border border-[#E2DDD3]'
-                  : 'text-[#625F57] hover:text-[#1E1D1A] hover:bg-[#E2DDD3]/50 border border-transparent'
+                  ? 'bg-gradient-to-r from-[#38BDF8]/15 to-[#0EA5E9]/5 text-[#7DD3FC] border border-[#38BDF8]/30'
+                  : 'text-[#94A3B8] hover:text-[#F1F5F9] hover:bg-[#181E27]/60 border border-transparent'
               }`}
             >
               <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />
@@ -492,7 +492,7 @@ export default function App() {
   );
 
   return (
-    <div className="h-screen w-screen overflow-hidden flex bg-[#F6F4EF] text-[#1E1D1A]">
+    <div className="h-screen w-screen overflow-hidden flex bg-[#080A0D] bg-[radial-gradient(ellipse_at_top_right,_rgba(56,189,248,0.10)_0%,_rgba(14,165,233,0.03)_38%,_#080A0D_75%)] text-[#F1F5F9]">
       {/* Desktop Sidebar */}
       <aside className="hidden md:block w-[260px] shrink-0 h-full">{sidebarContent}</aside>
 
@@ -504,24 +504,24 @@ export default function App() {
             type="button"
             aria-label="Tutup latar belakang menu"
             onClick={() => setMobileMenuOpen(false)}
-            className="flex-1 bg-black/30"
+            className="flex-1 bg-black/60"
           />
         </div>
       )}
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 h-full">
-        <header className="h-14 shrink-0 px-4 sm:px-6 flex items-center justify-between gap-4 border-b border-[#E2DDD3] bg-[#F6F4EF]">
+        <header className="h-14 shrink-0 px-4 sm:px-6 flex items-center justify-between gap-4 border-b border-[#232B36] bg-[#080A0D]/80">
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
               onClick={() => setMobileMenuOpen(true)}
               aria-label="Buka menu navigasi"
-              className="md:hidden h-10 w-10 inline-flex items-center justify-center rounded-lg border border-[#E2DDD3] bg-[#FFFFFF]"
+              className="md:hidden h-10 w-10 inline-flex items-center justify-center rounded-lg border border-[#232B36] bg-[#11151C] text-[#F1F5F9]"
             >
               <Menu className="w-4 h-4" aria-hidden="true" />
             </button>
-            <h1 className="font-display text-base font-semibold text-[#1E1D1A] truncate">
+            <h1 className="font-display text-base font-semibold text-[#F1F5F9] truncate">
               {activeTitle}
             </h1>
           </div>
@@ -530,15 +530,15 @@ export default function App() {
         <main className="flex-1 min-h-0">
           {loading ? (
             <div className="h-full flex items-center justify-center p-6">
-              <div className="text-sm text-[#625F57]">Memuat ruang kerja...</div>
+              <div className="text-sm text-[#94A3B8]">Memuat ruang kerja Lyta...</div>
             </div>
           ) : loadError ? (
             <div className="h-full flex flex-col items-center justify-center p-6 text-center gap-3">
-              <p className="text-sm text-[#DC2626]">{loadError}</p>
+              <p className="text-sm text-[#FCA5A5]">{loadError}</p>
               <button
                 type="button"
                 onClick={loadInitialState}
-                className="px-4 py-2 text-sm font-medium bg-[#2D5A4C] text-white rounded-lg"
+                className="px-4 py-2 text-sm font-medium bg-gradient-to-r from-[#38BDF8] to-[#0EA5E9] text-[#080A0D] rounded-lg hover:from-[#7DD3FC] hover:to-[#38BDF8]"
               >
                 Muat Ulang
               </button>

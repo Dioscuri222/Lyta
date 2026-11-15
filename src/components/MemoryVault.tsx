@@ -78,27 +78,27 @@ export function MemoryVault({
   return (
     <div className="h-full overflow-y-auto px-4 sm:px-8 py-6">
       <div className="max-w-4xl mx-auto space-y-6">
-        <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#E2DDD3] pb-5">
+        <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#232B36] pb-5">
           <div>
-            <h2 className="text-xl font-semibold text-[#1E1D1A]">Brankas Memori Jangka Panjang</h2>
-            <p className="mt-1 text-sm text-[#625F57]">
+            <h2 className="text-xl font-semibold text-[#F1F5F9]">Brankas Memori Jangka Panjang</h2>
+            <p className="mt-1 text-sm text-[#94A3B8]">
               Hanya memori tersemat dan paling relevan yang disuntikkan ke prompt agar konteks LLM lokal
               tetap hemat di VRAM 4GB.
             </p>
           </div>
-          <div className="text-right font-mono-tabular text-xs text-[#625F57]">
+          <div className="text-right font-mono-tabular text-xs text-[#94A3B8]">
             <div>Total tersimpan: {memories.length} entri</div>
             <div>Estimasi keseluruhan: ~{totalTokens} token</div>
           </div>
         </div>
 
         {/* Token Budget Control */}
-        <section className="bg-[#FFFFFF] border border-[#E2DDD3] rounded-xl p-4 sm:p-5">
+        <section className="bg-[#11151C] border border-[#232B36] rounded-xl p-4 sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <label htmlFor="memory-budget-slider" className="text-sm font-medium text-[#1E1D1A]">
+            <label htmlFor="memory-budget-slider" className="text-sm font-medium text-[#F1F5F9]">
               Batas Anggaran Token Memori per Prompt
             </label>
-            <span className="font-mono-tabular text-sm font-semibold text-[#2D5A4C]">
+            <span className="font-mono-tabular text-sm font-semibold text-[#38BDF8]">
               {memoryTokenBudget} token
             </span>
           </div>
@@ -110,9 +110,9 @@ export function MemoryVault({
             step={50}
             value={memoryTokenBudget}
             onChange={(e) => onUpdateBudget(Number(e.target.value))}
-            className="mt-3 w-full accent-[#2D5A4C]"
+            className="mt-3 w-full accent-[#38BDF8]"
           />
-          <p className="mt-2 text-xs text-[#625F57]">
+          <p className="mt-2 text-xs text-[#94A3B8]">
             Disarankan 250 sampai 400 token untuk model lokal 3B pada num_ctx 4096 agar sisa ruang
             percakapan tetap lapang.
           </p>
@@ -121,9 +121,9 @@ export function MemoryVault({
         {/* Add Memory Form */}
         <form
           onSubmit={handleAdd}
-          className="bg-[#FFFFFF] border border-[#E2DDD3] rounded-xl p-4 sm:p-5 space-y-3"
+          className="bg-[#11151C] border border-[#232B36] rounded-xl p-4 sm:p-5 space-y-3"
         >
-          <label htmlFor="new-memory-input" className="block text-sm font-medium text-[#1E1D1A]">
+          <label htmlFor="new-memory-input" className="block text-sm font-medium text-[#F1F5F9]">
             Tambah Memori Baru
           </label>
           <div className="flex flex-col sm:flex-row gap-2.5">
@@ -132,14 +132,14 @@ export function MemoryVault({
               type="text"
               value={newContent}
               onChange={(e) => setNewContent(e.target.value)}
-              placeholder="Contoh: Aku menggunakan laptop ThinkPad RAM 16GB dan GPU 4GB VRAM."
-              className="flex-1 h-11 px-3.5 text-sm bg-[#F6F4EF] border border-[#E2DDD3] rounded-lg focus:bg-[#FFFFFF]"
+              placeholder="Contoh: Aku menggunakan laptop RAM 16GB dan GPU 4GB VRAM."
+              className="flex-1 h-11 px-3.5 text-sm bg-[#080A0D] text-[#F1F5F9] placeholder:text-[#94A3B8] border border-[#232B36] rounded-lg focus:border-[#38BDF8]"
             />
             <select
               aria-label="Kategori memori"
               value={newCategory}
               onChange={(e) => setNewCategory(e.target.value as MemoryCategory)}
-              className="h-11 px-3 text-sm bg-[#F6F4EF] border border-[#E2DDD3] rounded-lg"
+              className="h-11 px-3 text-sm bg-[#080A0D] text-[#F1F5F9] border border-[#232B36] rounded-lg"
             >
               <option value="fact">Fakta Diri</option>
               <option value="preference">Preferensi</option>
@@ -149,23 +149,23 @@ export function MemoryVault({
             <button
               type="submit"
               disabled={!newContent.trim() || submitting}
-              className="h-11 px-4 inline-flex items-center justify-center gap-1.5 text-sm font-medium bg-[#2D5A4C] text-white rounded-lg hover:bg-[#23473C] disabled:opacity-45 transition-colors whitespace-nowrap shrink-0"
+              className="h-11 px-4 inline-flex items-center justify-center gap-1.5 text-sm font-medium bg-gradient-to-r from-[#38BDF8] to-[#0EA5E9] text-[#080A0D] rounded-lg hover:from-[#7DD3FC] hover:to-[#38BDF8] disabled:opacity-45 transition-colors whitespace-nowrap shrink-0"
             >
               <Plus className="w-4 h-4" aria-hidden="true" />
               <span>{submitting ? 'Menyimpan...' : 'Simpan Memori'}</span>
             </button>
           </div>
-          <label className="inline-flex items-center gap-2 text-xs text-[#625F57]">
+          <label className="inline-flex items-center gap-2 text-xs text-[#94A3B8]">
             <input
               type="checkbox"
               checked={newPinned}
               onChange={(e) => setNewPinned(e.target.checked)}
-              className="rounded accent-[#2D5A4C]"
+              className="rounded accent-[#38BDF8]"
             />
             <span>Sematkan permanen (selalu ikut di setiap percakapan)</span>
           </label>
           {errorMsg && (
-            <p role="alert" className="text-xs text-[#DC2626]">
+            <p role="alert" className="text-xs text-[#FCA5A5]">
               {errorMsg}
             </p>
           )}
@@ -173,7 +173,11 @@ export function MemoryVault({
 
         {/* Filter & Search */}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-1 p-1 bg-[#EDE9E0] rounded-lg" role="tablist" aria-label="Filter kategori memori">
+          <div
+            className="flex flex-wrap items-center gap-1 p-1 bg-[#11151C] border border-[#232B36] rounded-lg"
+            role="tablist"
+            aria-label="Filter kategori memori"
+          >
             {(['all', 'fact', 'preference', 'project', 'routine'] as const).map((cat) => (
               <button
                 key={cat}
@@ -183,8 +187,8 @@ export function MemoryVault({
                 onClick={() => setFilterCategory(cat)}
                 className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
                   filterCategory === cat
-                    ? 'bg-[#FFFFFF] text-[#1E1D1A] shadow-xs'
-                    : 'text-[#625F57] hover:text-[#1E1D1A]'
+                    ? 'bg-gradient-to-r from-[#38BDF8] to-[#0EA5E9] text-[#080A0D]'
+                    : 'text-[#94A3B8] hover:text-[#F1F5F9]'
                 }`}
               >
                 {cat === 'all' ? 'Semua' : CATEGORY_LABELS[cat]}
@@ -194,7 +198,7 @@ export function MemoryVault({
 
           <div className="relative w-full sm:w-64">
             <Search
-              className="w-4 h-4 text-[#625F57] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+              className="w-4 h-4 text-[#94A3B8] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
               aria-hidden="true"
             />
             <label htmlFor="memory-search" className="sr-only">
@@ -206,33 +210,33 @@ export function MemoryVault({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Cari kata kunci memori..."
-              className="w-full h-10 pl-9 pr-3 text-sm bg-[#FFFFFF] border border-[#E2DDD3] rounded-lg"
+              className="w-full h-10 pl-9 pr-3 text-sm bg-[#11151C] text-[#F1F5F9] placeholder:text-[#94A3B8] border border-[#232B36] rounded-lg focus:border-[#38BDF8]"
             />
           </div>
         </div>
 
         {/* Memory List */}
         {filtered.length === 0 ? (
-          <div className="bg-[#FFFFFF] border border-[#E2DDD3] rounded-xl p-8 text-center">
-            <p className="text-sm font-medium text-[#1E1D1A]">
+          <div className="bg-[#11151C] border border-[#232B36] rounded-xl p-8 text-center">
+            <p className="text-sm font-medium text-[#F1F5F9]">
               {memories.length === 0
                 ? 'Belum ada memori jangka panjang tersimpan.'
                 : 'Tidak ada memori yang cocok dengan filter saat ini.'}
             </p>
-            <p className="mt-1 text-xs text-[#625F57]">
+            <p className="mt-1 text-xs text-[#94A3B8]">
               Tambahkan fakta preferensi Anda di atas atau gunakan tombol Simpan Intisari Memori setelah
               berdiskusi.
             </p>
           </div>
         ) : (
-          <div className="bg-[#FFFFFF] border border-[#E2DDD3] rounded-xl divide-y divide-[#E2DDD3]">
+          <div className="bg-[#11151C] border border-[#232B36] rounded-xl divide-y divide-[#232B36]">
             {filtered.map((item) => {
               const isEditing = editingId === item.id;
               return (
                 <div key={item.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-[#625F57] mb-1">
-                      <span className="font-medium text-[#2D5A4C]">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-[#94A3B8] mb-1">
+                      <span className="font-medium text-[#38BDF8]">
                         {CATEGORY_LABELS[item.category]}
                       </span>
                       <span aria-hidden="true">·</span>
@@ -240,7 +244,7 @@ export function MemoryVault({
                       {item.pinned && (
                         <>
                           <span aria-hidden="true">·</span>
-                          <span className="font-medium text-[#1E1D1A]">Tersemat</span>
+                          <span className="font-medium text-[#F1F5F9]">Tersemat</span>
                         </>
                       )}
                     </div>
@@ -255,14 +259,14 @@ export function MemoryVault({
                             if (e.key === 'Escape') setEditingId(null);
                             if (e.key === 'Enter') void handleSaveEdit(item.id);
                           }}
-                          className="flex-1 h-9 px-3 text-sm bg-[#F6F4EF] border border-[#E2DDD3] rounded-md"
+                          className="flex-1 h-9 px-3 text-sm bg-[#080A0D] text-[#F1F5F9] border border-[#232B36] rounded-md"
                           autoFocus
                         />
                         <button
                           type="button"
                           onClick={() => handleSaveEdit(item.id)}
                           aria-label="Simpan perubahan"
-                          className="h-9 w-9 inline-flex items-center justify-center rounded-md bg-[#2D5A4C] text-white"
+                          className="h-9 w-9 inline-flex items-center justify-center rounded-md bg-[#38BDF8] text-[#080A0D]"
                         >
                           <Check className="w-4 h-4" aria-hidden="true" />
                         </button>
@@ -270,13 +274,13 @@ export function MemoryVault({
                           type="button"
                           onClick={() => setEditingId(null)}
                           aria-label="Batal sunting"
-                          className="h-9 w-9 inline-flex items-center justify-center rounded-md border border-[#E2DDD3] text-[#625F57]"
+                          className="h-9 w-9 inline-flex items-center justify-center rounded-md border border-[#232B36] text-[#94A3B8]"
                         >
                           <X className="w-4 h-4" aria-hidden="true" />
                         </button>
                       </div>
                     ) : (
-                      <p className="text-sm text-[#1E1D1A] leading-relaxed">{item.content}</p>
+                      <p className="text-sm text-[#F1F5F9] leading-relaxed">{item.content}</p>
                     )}
                   </div>
 
@@ -289,8 +293,8 @@ export function MemoryVault({
                         aria-pressed={item.pinned}
                         className={`h-9 w-9 inline-flex items-center justify-center rounded-lg border transition-colors ${
                           item.pinned
-                            ? 'bg-[#2D5A4C] text-white border-[#2D5A4C]'
-                            : 'bg-[#F6F4EF] text-[#625F57] border-[#E2DDD3] hover:text-[#1E1D1A]'
+                            ? 'bg-gradient-to-r from-[#38BDF8] to-[#0EA5E9] text-[#080A0D] border-[#38BDF8]'
+                            : 'bg-[#181E27] text-[#94A3B8] border-[#232B36] hover:text-[#F1F5F9]'
                         }`}
                       >
                         <Pin className="w-3.5 h-3.5" aria-hidden="true" />
@@ -302,7 +306,7 @@ export function MemoryVault({
                           setEditingText(item.content);
                         }}
                         aria-label="Sunting memori"
-                        className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-[#E2DDD3] bg-[#F6F4EF] text-[#625F57] hover:text-[#1E1D1A] transition-colors"
+                        className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-[#232B36] bg-[#181E27] text-[#94A3B8] hover:text-[#F1F5F9] transition-colors"
                       >
                         <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
                       </button>
@@ -310,7 +314,7 @@ export function MemoryVault({
                         type="button"
                         onClick={() => onDeleteMemory(item.id)}
                         aria-label="Hapus memori"
-                        className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-[#E2DDD3] bg-[#F6F4EF] text-[#625F57] hover:text-[#DC2626] transition-colors"
+                        className="h-9 w-9 inline-flex items-center justify-center rounded-lg border border-[#232B36] bg-[#181E27] text-[#94A3B8] hover:text-[#FCA5A5] transition-colors"
                       >
                         <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                       </button>

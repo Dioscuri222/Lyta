@@ -7,7 +7,8 @@ import type { ChatMessage, EmotionTag, MemoryCategory, MemoryItem, PersonaProfil
 import { estimateTokens, selectRelevantMemories } from './src/lib/vramCalculator.ts';
 
 const PORT = 3000;
-const STORE_PATH = path.resolve(process.cwd(), 'data', 'amika-store.json');
+const LEGACY_STORE_PATH = path.resolve(process.cwd(), 'data', 'amika-store.json');
+const STORE_PATH = path.resolve(process.cwd(), 'data', 'lyta-store.json');
 
 interface StoreData {
   persona: PersonaProfile;
@@ -17,7 +18,7 @@ interface StoreData {
 
 const DEFAULT_STORE: StoreData = {
   persona: {
-    name: 'Amika',
+    name: 'Lyta',
     roleDescription:
       'Pendamping AI personal yang ringan, tenang, dan praktis. Dirancang agar tetap responsif tanpa rendering Live2D.',
     toneGuidelines:
@@ -55,9 +56,25 @@ async function readStore(): Promise<StoreData> {
       messages: Array.isArray(parsed.messages) ? parsed.messages : [],
     };
   } catch {
-    await fs.mkdir(path.dirname(STORE_PATH), { recursive: true });
-    await fs.writeFile(STORE_PATH, JSON.stringify(DEFAULT_STORE, null, 2), 'utf-8');
-    return structuredClone(DEFAULT_STORE);
+    try {
+      const legacyRaw = await fs.readFile(LEGACY_STORE_PATH, 'utf-8');
+      const legacyParsed = JSON.parse(legacyRaw) as Partial<StoreData>;
+      const migratedPersona = { ...DEFAULT_STORE.persona, ...(legacyParsed.persona ?? {}) };
+      if (migratedPersona.name === 'Amika' || migratedPersona.name === 'Amika Lite') {
+        migratedPersona.name = 'Lyta';
+      }
+      const migrated: StoreData = {
+        persona: migratedPersona,
+        memories: Array.isArray(legacyParsed.memories) ? legacyParsed.memories : [],
+        messages: Array.isArray(legacyParsed.messages) ? legacyParsed.messages : [],
+      };
+      await writeStore(migrated);
+      return migrated;
+    } catch {
+      await fs.mkdir(path.dirname(STORE_PATH), { recursive: true });
+      await fs.writeFile(STORE_PATH, JSON.stringify(DEFAULT_STORE, null, 2), 'utf-8');
+      return structuredClone(DEFAULT_STORE);
+    }
   }
 }
 
@@ -535,7 +552,7 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Amika Lite server running on http://0.0.0.0:${PORT}`);
+    console.log(`Lyta server running on http://0.0.0.0:${PORT}`);
   });
 }
 
